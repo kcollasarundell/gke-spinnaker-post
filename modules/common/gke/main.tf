@@ -173,11 +173,6 @@ resource "google_container_node_pool" "clusters" {
 }
 
 
-# resource "google_project_iam_member" "cluster_service_account-gcr" {
-#   project = var.registry_project_id
-#   role    = "roles/storage.objectViewer"
-#   member  = "serviceAccount:${google_service_account.service_account.email}"
-# }
 
-# data "google_client_config" "default" {
-# }
+data "google_client_config" "default" {
+}

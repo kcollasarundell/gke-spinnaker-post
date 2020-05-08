@@ -45,3 +45,14 @@ module compute {
     }
   }
 }
+
+
+output "core_kubernetes_endpoint" {
+  value = module.compute.core_kubernetes_endpoint
+}
+output "prod_kubernetes_endpoint" {
+  value = module.compute.prod_kubernetes_endpoint
+}
+output "staging_kubernetes_endpoint" {
+  value = module.compute.staging_kubernetes_endpoint
+}
