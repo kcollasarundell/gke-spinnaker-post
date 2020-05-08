@@ -57,34 +57,35 @@ resource "google_project_iam_member" "xpn" {
 }
 
 resource "google_service_account" "service_account" {
-  account_id   = "${var.name}-compute"
+  for_each     = var.clusters
+  account_id   = "${var.name}-${each.key}"
   display_name = "Compute service account for cluster"
-  project      = var.project_id
+  project      = var.host-project
 }
 
 
 
-resource "google_container_cluster" "primary" {
+resource "google_container_cluster" "clusters" {
+  for_each = var.clusters
   provider = google-beta
 
-  name     = var.name
-  project  = var.project_id
-  location = var.location
-  # node_locations    = var.location
+  name     = "${var.name}-${each.key}"
+  project  = var.project
+  location = each.value.region
 
-  network = "projects/${var.project_id}/global/networks/${var.network}"
-
+  network = data.google_compute_network.host-vpc.self_link
   network_policy {
     enabled = false
   }
   private_cluster_config {
     enable_private_endpoint = false
     enable_private_nodes    = true
+    master_ipv4_cidr_block  = each.value.control_network
   }
-  
+
   release_channel { channel = "RAPID" }
 
-  subnetwork                = "projects/${var.project_id}/regions/${var.region}/subnetworks/${var.name}"
+  subnetwork                = google_compute_subnetwork.subnets[each.key].id
   default_max_pods_per_node = 100
 
   enable_shielded_nodes = true
@@ -97,6 +98,9 @@ resource "google_container_cluster" "primary" {
     client_certificate_config {
       issue_client_certificate = false
     }
+  }
+  node_config {
+    preemptible = true
   }
 
   addons_config {
@@ -115,23 +119,26 @@ resource "google_container_cluster" "primary" {
   }
 
   ip_allocation_policy {
-    cluster_secondary_range_name  = google_compute_subnetwork.subnetwork.secondary_ip_range[0].range_name
-    services_secondary_range_name = google_compute_subnetwork.subnetwork.secondary_ip_range[1].range_name
+    cluster_secondary_range_name  = google_compute_subnetwork.subnets[each.key].secondary_ip_range[0].range_name
+    services_secondary_range_name = google_compute_subnetwork.subnets[each.key].secondary_ip_range[1].range_name
 
   }
   remove_default_node_pool = true
   initial_node_count       = 1
   workload_identity_config {
-    identity_namespace = "${var.project_id}.svc.id.goog"
+    identity_namespace = "${var.project}.svc.id.goog"
   }
   lifecycle {
-    ignore_changes = [node_pool, initial_node_count]
+    ignore_changes = [node_config,node_pool, initial_node_count]
   }
 }
-resource "google_container_node_pool" "primary_preemptible_nodes" {
-  name       = "my-node-pool"
-  location   = "us-central1"
-  cluster    = google_container_cluster.primary.name
+resource "google_container_node_pool" "clusters" {
+  for_each   = var.clusters
+  provider   = google-beta
+  name       = "${each.key}-pool"
+  project    = var.project
+  location   = each.value.region
+  cluster    = google_container_cluster.clusters[each.key].name
   node_count = 1
   autoscaling {
     min_node_count = 1
@@ -145,21 +152,19 @@ resource "google_container_node_pool" "primary_preemptible_nodes" {
     max_surge       = 1
     max_unavailable = 0
   }
-  workload_metadata_config {
-    node_metadata = GKE_METADATA_SERVER
-  }
+
   node_config {
     preemptible  = true
-    machine_type = var.node_size
+    machine_type = each.value.node_size
 
     metadata = {
       disable-legacy-endpoints = "true"
     }
-
+    workload_metadata_config {
+      node_metadata = "GKE_METADATA_SERVER"
+    }
     disk_size_gb    = 10
     disk_type       = "pd-ssd"
-    service_account = google_service_account.service_account.email
-
     oauth_scopes = [
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",
@@ -168,11 +173,11 @@ resource "google_container_node_pool" "primary_preemptible_nodes" {
 }
 
 
-resource "google_project_iam_member" "cluster_service_account-gcr" {
-  project = var.registry_project_id
-  role    = "roles/storage.objectViewer"
-  member  = "serviceAccount:${google_service_account.service_account.email}"
-}
+# resource "google_project_iam_member" "cluster_service_account-gcr" {
+#   project = var.registry_project_id
+#   role    = "roles/storage.objectViewer"
+#   member  = "serviceAccount:${google_service_account.service_account.email}"
+# }
 
-data "google_client_config" "default" {
-}
+# data "google_client_config" "default" {
+# }
