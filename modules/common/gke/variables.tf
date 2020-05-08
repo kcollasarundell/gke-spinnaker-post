@@ -17,5 +17,7 @@ variable "clusters" {
   type = map(object({
     region   = string
     ip_range = string
+    node_size = string
+    control_network = string
   }))
 }
