@@ -33,14 +33,25 @@ resource "google_compute_shared_vpc_service_project" "clusters" {
   service_project = var.project
 }
 
-resource "google_compute_subnetwork_iam_binding" "binding" {
+resource "google_compute_subnetwork_iam_member" "compute" {
   for_each   = google_compute_subnetwork.subnets
   project    = each.value.project
   region     = each.value.region
   subnetwork = each.value.name
   role       = "roles/compute.networkUser"
-  members = [
-    "serviceAccount:${data.google_project.project.number}@cloudservices.gserviceaccount.com",
-    "serviceAccount:service-${data.google_project.project.number}@container-engine-robot.iam.gserviceaccount.com"
-  ]
+  member     = "serviceAccount:${data.google_project.project.number}@cloudservices.gserviceaccount.com"
+}
+resource "google_compute_subnetwork_iam_member" "container" {
+  for_each   = google_compute_subnetwork.subnets
+  project    = each.value.project
+  region     = each.value.region
+  subnetwork = each.value.name
+  role       = "roles/compute.networkUser"
+  member     = "serviceAccount:service-${data.google_project.project.number}@container-engine-robot.iam.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "xpn" {
+  role    = "roles/container.hostServiceAgentUser"
+  project = var.host-project
+  member  = "serviceAccount:service-${data.google_project.project.number}@container-engine-robot.iam.gserviceaccount.com"
 }
