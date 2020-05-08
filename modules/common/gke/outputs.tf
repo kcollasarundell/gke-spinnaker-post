@@ -1,13 +1,23 @@
-# output "kubernetes_endpoint" {
-#   sensitive = true
-#   value     = google_container_cluster.primary.endpoint
-# }
+output "kubernetes_endpoint" {
+  sensitive = true
+  value = {
+    for key in local.clusterkeys :
+    key => google_container_cluster.clusters[key].endpoint
+  }
+}
 
-# output "client_token" {
-#   sensitive = true
-#   value     = base64encode(data.google_client_config.default.access_token)
-# }
+locals {
+  clusterkeys = keys(var.clusters)
 
-# output "ca_certificate" {
-#   value = google_container_cluster.primary.master_auth.0.cluster_ca_certificate
-# }
+}
+
+output "client_token" {
+  sensitive = true
+  value     = base64encode(data.google_client_config.default.access_token)
+}
+output "ca_certificate" {
+  value = {
+    for key in local.clusterkeys :
+    key => google_container_cluster.clusters[key].master_auth.0.cluster_ca_certificate
+  }
+}

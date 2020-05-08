@@ -84,3 +84,14 @@ module "staging-clusters" {
   host-project      = module.host-project.project.project_id
   host-network-name = google_compute_network.host-vpc.name
 }
+
+
+output "core_kubernetes_endpoint" {
+  value = module.core-clusters.kubernetes_endpoint
+}
+output "prod_kubernetes_endpoint" {
+  value = module.prod-clusters.kubernetes_endpoint
+}
+output "staging_kubernetes_endpoint" {
+  value = module.staging-clusters.kubernetes_endpoint
+}
