@@ -4,3 +4,7 @@ variable "billing" {
 variable "base_folder" {
     description = "The Location that all folders and projectsion should live under"
 }
+
+variable "prefix" {
+    description = "A prefix to use to prevent conflicts in project names"
+}

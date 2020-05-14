@@ -12,7 +12,7 @@ data "google_billing_account" "bills" {
 
 module compute {
   source          = "./modules/core"
-  name            = "kca-spin"
+  name            = var.prefix
   billing-account = data.google_billing_account.bills.id
   base-folder     = var.base_folder
   core-clusters = {
