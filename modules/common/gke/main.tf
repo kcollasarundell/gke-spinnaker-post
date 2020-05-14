@@ -74,9 +74,7 @@ resource "google_container_cluster" "clusters" {
   location = each.value.region
 
   network = data.google_compute_network.host-vpc.self_link
-  network_policy {
-    enabled = false
-  }
+  subnetwork = google_compute_subnetwork.subnets[each.key].id
   private_cluster_config {
     enable_private_endpoint = false
     enable_private_nodes    = true
@@ -84,9 +82,11 @@ resource "google_container_cluster" "clusters" {
   }
 
   release_channel { channel = "RAPID" }
-
-  subnetwork                = google_compute_subnetwork.subnets[each.key].id
-  default_max_pods_per_node = 100
+  maintenance_policy {
+    daily_maintenance_window {
+      start_time = "04:00"
+    }
+  }
 
   enable_shielded_nodes = true
 
@@ -95,6 +95,8 @@ resource "google_container_cluster" "clusters" {
   }
 
   master_auth {
+    username = ""
+    password = ""
     client_certificate_config {
       issue_client_certificate = false
     }
@@ -103,25 +105,10 @@ resource "google_container_cluster" "clusters" {
     preemptible = true
   }
 
-  addons_config {
-    http_load_balancing {
-      disabled = false
-    }
-    horizontal_pod_autoscaling {
-      disabled = false
-    }
-    network_policy_config {
-      disabled = true
-    }
-    dns_cache_config {
-      enabled = true
-    }
-  }
 
   ip_allocation_policy {
     cluster_secondary_range_name  = google_compute_subnetwork.subnets[each.key].secondary_ip_range[0].range_name
     services_secondary_range_name = google_compute_subnetwork.subnets[each.key].secondary_ip_range[1].range_name
-
   }
   remove_default_node_pool = true
   initial_node_count       = 1
@@ -129,7 +116,7 @@ resource "google_container_cluster" "clusters" {
     identity_namespace = "${var.project}.svc.id.goog"
   }
   lifecycle {
-    ignore_changes = [node_config,node_pool, initial_node_count]
+    ignore_changes = [node_config, node_pool, initial_node_count]
   }
 }
 resource "google_container_node_pool" "clusters" {
@@ -156,15 +143,11 @@ resource "google_container_node_pool" "clusters" {
   node_config {
     preemptible  = true
     machine_type = each.value.node_size
-
-    metadata = {
-      disable-legacy-endpoints = "true"
-    }
     workload_metadata_config {
       node_metadata = "GKE_METADATA_SERVER"
     }
-    disk_size_gb    = 10
-    disk_type       = "pd-ssd"
+    disk_size_gb = 10
+    disk_type    = "pd-ssd"
     oauth_scopes = [
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",
